@@ -1,0 +1,13 @@
+# Secrets and credentials
+.secrets/
+*.token
+*.key
+!*.pub
+
+# SSH keys (except public keys)
+.ssh/*
+!.ssh/*.pub
+
+# Environment files
+.env
+.env.local
