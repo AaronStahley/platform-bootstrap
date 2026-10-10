@@ -173,6 +173,43 @@ data:
 echo "ArgoCD custom health checks configured"
 echo ""
 
+# Wait until every Argo CD Application is Synced and Healthy.
+# A parent app-of-apps reports Healthy even when its children are not, and an app
+# that cannot load its source (bad credentials, missing path) also reports Healthy
+# with sync status Unknown, so checking the root app alone proves nothing.
+# Apps that track a stage/<env> branch Kargo has not created yet are skipped: that
+# branch appears on the first promotion into the stage.
+#   $1 = timeout in seconds
+wait_for_apps() {
+  local deadline=$((SECONDS + $1))
+  while true; do
+    local apps errors awaiting pending
+    apps=$(kubectl get applications -n argocd \
+      -o jsonpath='{range .items[*]}{.metadata.name} {.status.sync.status} {.status.health.status}{"\n"}{end}')
+    errors=$(kubectl get applications -n argocd \
+      -o jsonpath='{range .items[*]}{.metadata.name}{": "}{.status.conditions[*].message}{"\n"}{end}' |
+      grep -v ': $' || true)
+    awaiting=$(echo "$errors" | grep "unable to resolve 'stage/" | cut -d: -f1 || true)
+    pending=$(echo "$apps" | awk -v skip="$awaiting" '
+      BEGIN { n = split(skip, s, "\n"); for (i = 1; i <= n; i++) skipped[s[i]] = 1 }
+      NF && !($1 in skipped) && !($2 == "Synced" && $3 == "Healthy")')
+    if [ -z "$pending" ]; then
+      if [ -n "$awaiting" ]; then
+        echo "Awaiting first Kargo promotion (stage branch not created yet):"
+        echo "$awaiting" | sed 's/^/  /'
+      fi
+      return 0
+    fi
+    if [ $SECONDS -ge $deadline ]; then
+      echo "ERROR: Argo CD applications not Synced/Healthy after $1s:"
+      echo "$pending"
+      [ -n "$errors" ] && echo "$errors"
+      return 1
+    fi
+    sleep 10
+  done
+}
+
 # 3. Apply infra app-of-apps and wait for it to be healthy before applying domains.
 # This ensures the webapi-operator CRD and controller are running before the domain
 # apps try to create WebApi resources, avoiding a sync race condition.
@@ -181,8 +218,7 @@ kubectl apply -f argocd/applications/infra-app-of-apps.yaml
 
 echo "Waiting for infrastructure apps to sync and become healthy..."
 echo "(This includes Kargo, the webapi-operator instances, and Kargo resources - may take ~10 min)"
-kubectl wait --for=jsonpath='{.status.health.status}'=Healthy \
-  --timeout=600s application/infra-apps -n argocd
+wait_for_apps 900
 
 echo "Infrastructure apps are synced and healthy"
 echo ""
@@ -192,8 +228,7 @@ echo "Applying domains app-of-apps..."
 kubectl apply -f argocd/applications/domains-app-of-apps.yaml
 
 echo "Waiting for domain apps to sync and become healthy..."
-kubectl wait --for=jsonpath='{.status.health.status}'=Healthy \
-  --timeout=300s application/domains-apps -n argocd
+wait_for_apps 600
 
 echo "Domain apps are synced and healthy"
 echo ""
