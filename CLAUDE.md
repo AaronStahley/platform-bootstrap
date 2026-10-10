@@ -11,7 +11,7 @@ Day-0 setup for the local platform. It creates a kind cluster, installs Argo CD,
 
 ## Build, test, run
 
-Requires Docker, kind, kubectl, make, and a published operator image at the tag pinned in `platform-gitops`.
+Requires Docker on a cgroup v2 host, kind, kubectl, make, and `.secrets/github_token` (fine-grained PAT, Contents read/write on the four platform repos; see README "GitHub token").
 
 ```bash
 make all        # cluster + Argo CD + bootstrap (~10-15 min)
