@@ -35,7 +35,6 @@ Flow: a developer changes a `WebApi` in a domain repo on Git. Kargo turns the ch
 
 ## Conventions (all repos)
 
-- Commit as `Aaron Stahley <AaronStahley@users.noreply.github.com>` (set via local `git config`).
 - Keep commits small and meaningful.
 - Never hand-edit generated files (deepcopy, CRDs, RBAC). In webapi-operator run `make manifests generate`, then refresh the Helm chart's CRD copy in `helm/webapi-operator/crds/`.
 - Demo workload is podinfo: `ghcr.io/stefanprodan/podinfo` `6.15.0`, port `9898`, liveness `/healthz`, readiness `/readyz`.
