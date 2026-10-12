@@ -1,5 +1,7 @@
 # platform-bootstrap
 
+> Part of an [internal developer platform proof of concept](https://github.com/AaronStahley/platform-gitops#readme). Start there for the overview, architecture and how to run it.
+
 Day 0 bootstrap for Kubernetes cluster setup with ArgoCD and GitOps foundation.
 
 ## Overview
